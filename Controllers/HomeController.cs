@@ -28,7 +28,7 @@ namespace SoftLineTestApp.Controllers
             return View();
         }
 
-        public IActionResult Privacy()
+        public IActionResult Tasks()
         {
             return View();
         }
