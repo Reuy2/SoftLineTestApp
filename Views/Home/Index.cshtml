@@ -1,0 +1,331 @@
+﻿@{
+    ViewData["Title"] = "Home Page";
+}
+
+<div class="text-center">
+
+    <dialog id="okAdd">
+        <p>Задача добавлена</p>
+        <button onclick="window.okAdd.close()">Закрыть</button>
+    </dialog>
+
+    <dialog id="errAdd">
+        <p>Задача не добавлена</p>
+        <button onclick="window.errAdd.close()">Закрыть</button>
+    </dialog>
+
+    <dialog id="okDel">
+        <p>Задача удалена</p>
+        <button onclick="window.okDel.close()">Закрыть</button>
+    </dialog>
+
+    <dialog id="errDel">
+        <p>Задача не удалена</p>
+        <button onclick="window.errDel.close()">Закрыть</button>
+    </dialog>
+
+    <dialog id="okEdit">
+        <p>Задача обновлена</p>
+        <button onclick="window.okEdit.close()">Закрыть</button>
+    </dialog>
+
+    <dialog id="errEdit">
+        <p>Задача не обновлена</p>
+        <button onclick="window.errEdit.close()">Закрыть</button>
+    </dialog>
+
+    <dialog id="choiceRow">
+        <p>Выберите строку</p>
+        <button onclick="window.choiceRow.close()">Закрыть</button>
+    </dialog>
+
+
+    <button type="button" onclick="window.addDialog.showModal()">
+        Добавить
+    </button>
+
+    <dialog id="addDialog">
+        <form id="addForm" onsubmit="submitAddDialog(this);return false" method="post">
+
+            <p>Введите имя задачи:</p>
+            <input type="text" name="name" value="123" required />
+
+            <p>Введите описание задачи:</p>
+            <input type="text" name="description" value="123" required />
+
+            <p>Выберите статус задачи задачи:</p>
+            <select id="statusesName" name="statusId" required>
+                <option value=""></option>
+            </select>
+
+            <p></p>
+            <button type="submit">Добавить задачу</button>
+
+        </form>
+        <button type="button" onclick="window.addDialog.close()"> Закрыть </button>
+    </dialog>
+
+    <button onclick="deleteGoal()">Удалить</button>
+
+    <button onclick="editGoal()">Изменить</button>
+
+    <dialog id="editDialog">
+        <form id="editForm" onsubmit="submitEditDialog(this);return false" method="post">
+
+            <p>Введите имя задачи:</p>
+            <input id="editName" type="text" name="name" value="" required />
+
+            <p>Введите описание задачи:</p>
+            <input id="editDescription" type="text" name="description" value="" required />
+
+            <p>Выберите статус задачи задачи:</p>
+            <select id="editStatusesName" name="statusId" required>
+
+            </select>
+
+            <p></p>
+            <button type="submit">Изменить задачу</button>
+
+        </form>
+        <button type="button" onclick="window.editDialog.close()"> Закрыть </button>
+    </dialog>
+
+    <div id="goals" style="display:contents">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Имя</th>
+                    <th>Описание</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<style>
+    .table {
+        width: 100%;
+        margin-bottom: 1rem;
+        color: #212529;
+        border-collapse: collapse;
+    }
+
+    .table tbody tr:hover{
+        background-color: lightgray;
+    }
+
+    .selectedRow{
+        background-color: gray!important;
+    }
+</style>
+
+@section Scripts{ 
+    <script>
+        var currentSelectedRow;
+
+        //изменение задачи
+        function editGoal() {
+            if (currentSelectedRow == null) {
+                window.choiceRow.showModal()
+                return
+            }
+
+            var statuses = document.getElementById('editStatusesName')
+            var editName = document.getElementById('editName')
+            var editDescription = document.getElementById('editDescription')
+
+            var goalStatusId = currentSelectedRow.cells[2].getAttribute('data-id')
+            $.each(statuses, function (index, item) {
+                if (goalStatusId == item.value) {
+                    item.setAttribute('selected', true);
+                }
+            })
+
+            editName.value = currentSelectedRow.cells[0].innerHTML
+            editDescription.value = currentSelectedRow.cells[1].innerHTML
+            console.log(currentSelectedRow.cells[0].getAttribute('data-goalId'))
+
+            window.editDialog.showModal()
+        }
+
+        function submitEditDialog(form) {
+            let goal = {
+                id: currentSelectedRow.cells[0].getAttribute('data-goalId'),
+                name: form.name.value,
+                description: form.description.value,
+                statusId: form.statusId.value
+            }
+
+            $.ajax({
+                type: 'POST',
+                url: '/api/editGoal',
+                dataType: 'json',
+                data: goal,
+                success: function (response) {
+                    currentSelectedRow.cells[0].innerHTML = response.name
+                    currentSelectedRow.cells[1].innerHTML = response.description
+                    currentSelectedRow.cells[2].innerHTML = response.status.statusName
+                    currentSelectedRow.cells[2].setAttribute('data-id',response.statusId)
+
+                    clearAllSelectedTr()
+
+                    window.editDialog.close()
+
+                    window.okEdit.showModal()
+                },
+                error: function (req, status, error) {
+                    console.log(error)
+                    window.editDialog.close()
+                    window.errEdit.showModal()
+                }
+            });
+
+            window.addDialog.close()
+        }
+
+        //удаление задачи
+        function deleteGoal() {
+            if (currentSelectedRow == null) {
+                window.choiceRow.showModal()
+                return
+            }
+
+            let goal = {
+                name: currentSelectedRow.cells[0].innerHTML,
+                description: currentSelectedRow.cells[1].innerHTML,
+                statusId: currentSelectedRow.cells[2].getAttribute('data-id')
+            }
+
+            $.ajax({
+                type: 'POST',
+                url: '/api/deleteGoal',
+                dataType: 'json',
+                data: goal,
+                success: function (response) {
+                    window.okDel.showModal()
+                    currentSelectedRow.parentNode.removeChild(currentSelectedRow)
+                },
+                error: function (req, status, error) {
+                    console.log(error)
+                    window.errDel.showModal()
+                }
+            })
+        }
+        //Выбор строки в таблице
+        function SelectRow(currenttr) {
+            //Очистить все выделения
+            if (currenttr.className == 'selectedRow') {
+                currenttr.className = ''
+                currentSelectedRow = null
+            }
+            else {
+                clearAllSelectedTr()
+
+                currenttr.className = 'selectedRow'
+                currentSelectedRow = currenttr
+            }
+        };
+        //очистка выбора строки в таблице
+        function clearAllSelectedTr() {
+            var tableRows = document.querySelector('#goals').querySelectorAll('tr');
+            currentSelectedRow = null
+            $.each(tableRows, function (index, row) {
+                row.className = ''
+            })
+        }
+        //Добавление задачи
+        function submitAddDialog(form) {
+            $.ajax({
+                type: 'POST',
+                url: '/api/addGoal',
+                dataType: 'json',
+                data: $('#addForm').serialize(),
+                success: function (response) {
+                    console.log(response)
+                    $('#goals tbody').append(
+                        '<tr class="tableHover" onmousedown="SelectRow(this);" ><td data-goalId='+ response.id +'>' + response.name +
+                        '</td><td>' + response.description +
+                        '</td><td data-id='+ response.statusId +'>' + response.status.statusName +
+                        '</td></tr>'
+                    )
+
+                    clearAllSelectedTr()
+
+                    window.okAdd.showModal()
+                },
+                error: function (req, status, error) {
+                    console.log(error)
+                    window.errAdd.showModal()
+                }
+            });
+
+            window.addDialog.close()
+        }
+
+        //Получение всех задач
+        $.ajax({
+            type: 'GET',
+            url: '/api/getGoals',
+            dataType: 'json',
+            success: function (response) {
+                console.log(response)
+                $(response).each(function (index, item) {
+
+                    $('#goals tbody').append(
+                        '<tr class="tableHover" onmousedown="SelectRow(this);" ><td data-goalId=' + item.id +'>' + item.name +
+                        '</td><td>' + item.description +
+                        '</td><td data-id=' + item.statusId +'>' + item.status.statusName +
+                        '</td></tr>'
+                    )
+
+                });
+            },
+            error: function (req, status, error) {
+                console.log(error)
+            }
+        });
+
+        //Ajax для получения статусов для окна добавления
+        $.ajax({
+            type: 'GET',
+            url: 'http://localhost:5000/api/getStatuses',
+            dataType: 'json',
+            success: function (response) {
+                console.log(response)
+                $(response).each(function (index, item) {
+
+                    $('#statusesName').append(
+                        '<option value="' + item.id + '">' + item.statusName +'</option>'
+                    )
+
+                });
+            },
+            error: function (req, status, error) {
+                console.log(error)
+            }
+        });
+
+        //Ajax получение статусов для окна изменения задач
+        $.ajax({
+            type: 'GET',
+            url: 'http://localhost:5000/api/getStatuses',
+            dataType: 'json',
+            success: function (response) {
+                console.log(response)
+                $(response).each(function (index, item) {
+
+                    $('#editStatusesName').append(
+                        '<option value="' + item.id + '">' + item.statusName + '</option>'
+                    )
+
+                });
+            },
+            error: function (req, status, error) {
+                console.log(error)
+            }
+        });
+    </script>
+}
